@@ -34,11 +34,11 @@ void HistoryDB::initSchema() {
 // Logic to insert command and link it to execution
 void HistoryDB::logCommand(const std::string& cmd, const std::string& session, 
                            const std::string& cwd, const std::string& branch, 
-                           int exit_code, int duration) {
+                           int exit_code, int duration, long long timestamp) { // Added timestamp here
     try {
         SQLite::Database db(db_path_, SQLite::OPEN_READWRITE);
         
-        // 1. Insert or Ignore the command string to keep it unique
+        // 1. Insert or Ignore the command string
         SQLite::Statement query(db, "INSERT OR IGNORE INTO commands (cmd_text) VALUES (?)");
         query.bind(1, cmd);
         query.exec();
@@ -49,10 +49,10 @@ void HistoryDB::logCommand(const std::string& cmd, const std::string& session,
         idQuery.executeStep();
         int cmd_id = idQuery.getColumn(0);
 
-        // 3. Log the execution context (Git branch, CWD, etc.)
+        // 3. Log execution (using the passed timestamp)
         SQLite::Statement logQuery(db, "INSERT INTO executions "
             "(command_id, session_id, cwd, git_branch, exit_code, duration_ms, timestamp) "
-            "VALUES (?, ?, ?, ?, ?, ?, unixepoch())");
+            "VALUES (?, ?, ?, ?, ?, ?, ?)");
             
         logQuery.bind(1, cmd_id);
         logQuery.bind(2, session);
@@ -60,6 +60,7 @@ void HistoryDB::logCommand(const std::string& cmd, const std::string& session,
         logQuery.bind(4, branch);
         logQuery.bind(5, exit_code);
         logQuery.bind(6, duration);
+        logQuery.bind(7, timestamp); // Bind the argument
         logQuery.exec();
 
     } catch (std::exception& e) {
@@ -67,42 +68,39 @@ void HistoryDB::logCommand(const std::string& cmd, const std::string& session,
     }
 }
 
-std::vector<SearchResult> HistoryDB::search(const std::string& query, const std::string& cwd_filter) {
+std::vector<SearchResult> HistoryDB::search(const std::string& query, 
+                                            SearchScope scope,
+                                            const std::string& context_val) {
     std::vector<SearchResult> results;
     try {
         SQLite::Database db(db_path_, SQLite::OPEN_READONLY);
         
-        // Basic query: Join executions with commands
-        // We prioritize recent commands (ORDER BY id DESC)
         std::string sql = R"(
-            SELECT e.id, c.cmd_text, e.git_branch, e.timestamp
+            SELECT DISTINCT c.cmd_text, MAX(e.timestamp) as last_used
             FROM executions e
             JOIN commands c ON e.command_id = c.id
             WHERE c.cmd_text LIKE ? 
         )";
 
-        // Optional: Filter by directory if requested
-        if (!cwd_filter.empty()) {
+        if (scope == SearchScope::DIRECTORY) {
             sql += " AND e.cwd = ? ";
+        } else if (scope == SearchScope::BRANCH) {
+            sql += " AND e.git_branch = ? ";
         }
 
-        sql += " ORDER BY e.id DESC LIMIT 50";
+        sql += " GROUP BY c.cmd_text ORDER BY last_used DESC LIMIT 10";
 
         SQLite::Statement q(db, sql);
         
-        // Bind parameters
         q.bind(1, "%" + query + "%");
-        if (!cwd_filter.empty()) {
-            q.bind(2, cwd_filter);
+        
+        if (scope != SearchScope::GLOBAL) {
+            q.bind(2, context_val);
         }
 
         while (q.executeStep()) {
             SearchResult res;
-            res.id = q.getColumn(0);
-            res.cmd = q.getColumn(1).getString();
-            // Handle null branch safely
-            res.branch = q.getColumn(2).isNull() ? "" : q.getColumn(2).getString();
-            res.timestamp = q.getColumn(3);
+            res.cmd = q.getColumn(0).getString();
             results.push_back(res);
         }
 

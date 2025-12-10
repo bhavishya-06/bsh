@@ -60,7 +60,8 @@ int main(int argc, char* argv[]) {
         int exit_code = exit_str.empty() ? 0 : std::stoi(exit_str);
         int duration = duration_str.empty() ? 0 : std::stoi(duration_str);
 
-        history.logCommand(cmd, session, cwd, branch, exit_code, duration);
+        long long now = (long long)std::time(nullptr);
+        history.logCommand(cmd, session, cwd, branch, exit_code, duration, now);
     }
 
     else if (mode == "search") {
@@ -72,5 +73,35 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    else if (mode == "suggest") {
+        // Usage: bsh suggest "query" --scope [global|dir|branch] --cwd "..." --branch "..."
+        if (argc < 3) return 0;
+        
+        std::string query = argv[2];
+        SearchScope scope = SearchScope::GLOBAL;
+        std::string context_val = "";
+        
+        // Simple argument parsing
+        for (int i = 3; i < argc - 1; i++) {
+            std::string arg = argv[i];
+            if (arg == "--scope") {
+                std::string s = argv[i+1];
+                if (s == "dir") scope = SearchScope::DIRECTORY;
+                if (s == "branch") scope = SearchScope::BRANCH;
+            }
+            else if (arg == "--cwd" && scope == SearchScope::DIRECTORY) {
+                context_val = argv[i+1];
+            }
+            else if (arg == "--branch" && scope == SearchScope::BRANCH) {
+                context_val = argv[i+1];
+            }
+        }
+
+        auto results = history.search(query, scope, context_val);
+        
+        for (const auto& r : results) {
+            std::cout << r.cmd << "\n"; // Clean output, just commands
+        }
+    }
     return 0;
 }

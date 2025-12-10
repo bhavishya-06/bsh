@@ -38,15 +38,12 @@ std::string run_search_ui(HistoryDB& db) {
     auto renderer = Renderer(container, [&] {
         // -- LOGIC: Update results based on query --
         // (In a real app, you might debounce this to avoid lag)
-        results = db.search(query_text);
+        results = db.search(query_text, SearchScope::GLOBAL, "");
         
         // Refresh menu entries
         menu_entries.clear();
         for (const auto& r : results) {
-            // Format: "git status  [main]"
-            std::string label = r.cmd;
-            if (!r.branch.empty()) label += "  [" + r.branch + "]";
-            menu_entries.push_back(label);
+            menu_entries.push_back(r.cmd);
         }
 
         // -- RENDER --
