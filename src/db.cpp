@@ -25,8 +25,6 @@ void HistoryDB::initSchema() {
                 "timestamp INTEGER, "
                 "FOREIGN KEY (command_id) REFERENCES commands (id)"
                 ");");
-                
-        std::cout << "BSH Database initialized successfully.\n";
     } catch (std::exception& e) {
         std::cerr << "DB Init Error: " << e.what() << std::endl;
     }

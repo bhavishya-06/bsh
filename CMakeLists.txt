@@ -26,7 +26,7 @@ pkg_check_modules(LIBGIT2 REQUIRED IMPORTED_TARGET libgit2)
 add_executable(bsh 
     src/main.cpp 
     src/db.cpp
-    #src/git_utils.cpp 
+    src/git_utils.cpp 
 )
 
 # --- Link Libraries ---
