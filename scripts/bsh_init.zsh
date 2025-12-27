@@ -5,6 +5,19 @@ export BSH_REPO_ROOT="$(dirname $(dirname $BSH_INIT_SCRIPT_PATH))"
 
 export BSH_BINARY="$BSH_REPO_ROOT/build/bsh"
 
+BSH_DAEMON_BIN="$BSH_REPO_ROOT/build/bsh-daemon"
+
+# Function to ensure daemon is alive
+_bsh_check_daemon() {
+    if [[ ! -S "/tmp/bsh.sock" ]]; then
+        # Socket doesn't exist, start daemon
+        "$BSH_DAEMON_BIN" &!
+    fi
+}
+
+# Run check immediately
+_bsh_check_daemon
+
 # State Variables
 typeset -gA _bsh_suggestions
 typeset -g _bsh_start_time

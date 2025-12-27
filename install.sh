@@ -22,7 +22,7 @@ fi
 
 # Clean build directory and rebuild
 rm -rf build
-cmake -B build
+cmake -B build -G Ninja
 cmake --build build --target "$BINARY_NAME"
 
 if [[ $? -ne 0 ]]; then
