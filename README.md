@@ -31,7 +31,7 @@ BSH operates with a client-daemon architecture completely on the local machine. 
 
 ## 3. Demo
 
-![BSH Demo](demo.gif)
+![BSH Demo](assets/demo.gif)
 
 ## 4. Installation
 
